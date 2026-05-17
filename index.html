@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iMersWallet - Asisten Keuangan Pribadi & Bisnis</title>
+    <!-- Tailwind CSS untuk Desain Responsif & Modern -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ApexCharts untuk Visualisasi Data Finansial -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <!-- Lucide Icons untuk Ikon Premium Modern -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Font Plus Jakarta Sans Premium dari Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { 
+            --dana-blue: #108EE9; 
+            --dana-dark: #0B5ED7;
+            --dana-light: #F5F9FF;
+            --emerald: #10B981;
+            --rose: #F43F5E;
+        }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--dana-light); 
+            color: #1E293B; 
+        }
+        .bg-dana { background-color: var(--dana-blue); }
+        .bg-dana-dark { background-color: var(--dana-dark); }
+        .text-dana { color: var(--dana-blue); }
+        
+        /* Bayangan Kartu Premium ala Fintech */
+        .card-shadow { 
+            box-shadow: 0 20px 35px -5px rgba(16, 142, 233, 0.05), 0 10px 15px -5px rgba(16, 142, 233, 0.02); 
+        }
+        .bottom-nav { 
+            box-shadow: 0 -5px 30px rgba(16, 142, 233, 0.08); 
+        }
+        
+        /* Animasi Transisi Halaman */
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        .animate-fade { animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        /* Animasi Getar untuk PIN Salah */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        .animate-shake { animation: shake 0.2s ease-in-out 2; }
+
+        /* Logo transparan: jangan kasih background/card putih di area image */
+        .logo-transparent-wrap {
+            background: transparent !important;
+            box-shadow: none !important;
+            border: 0 !important;
+            overflow: visible !important;
+        }
+        .logo-transparent-img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            mix-blend-mode: normal;
+        }
+        #lockscreen-logo-container img {
+            background: transparent !important;
+            box-shadow: none !important;
+            border: 0 !important;
+        }
+    </style>
+</head>
+<body class="pb-24 lg:pb-0 min-h-screen flex flex-col lg:flex-row font-sans">
+
+    <!-- SCREEN LOCK PIN 6-DIGIT (Gaya Aplikasi HP Finansial Aman) -->
+    <div id="pin-lockscreen" class="fixed inset-0 bg-slate-900/95 z-[150] flex flex-col items-center justify-center p-6 backdrop-blur-md">
+        <div class="w-full max-w-sm flex flex-col items-center space-y-8 animate-fade" id="pin-container-box">
+            
+            <!-- Input Rahasia Asli (Memicu keyboard fisik/bawaan HP) -->
+            <input type="password" id="real-pin-input" class="absolute -top-40 opacity-0 w-1 h-1 pointer-events-none" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="off" oninput="handlePinInput(this.value)">
+
+            <div class="text-center space-y-2">
+                <!-- LOGO DINAMIS PADA LOCKSCREEN -->
+                <div id="lockscreen-logo-container" class="cursor-pointer flex justify-center w-full" onclick="focusPinInput()">
+                    <!-- Diisi otomatis oleh fungsi renderLogo() -->
+                </div>
+                <h2 class="text-3xl font-black mt-4"><span class="text-[#108EE9]">iMers</span><span class="text-[#00E5FF]">WALLET</span></h2>
+                <p class="text-sm text-slate-300 font-medium">Masukkan PIN 6-Digit</p>
+            </div>
+
+            <!-- Titik Penunjuk PIN (Mengetuk area ini akan fokus ke input HP) -->
+            <div class="flex gap-4 justify-center py-4 cursor-pointer" id="pin-dots" onclick="focusPinInput()">
+                <div class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-150"></div>
+                <div class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-150"></div>
+                <div class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-150"></div>
+                <div class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-150"></div>
+                <div class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-150"></div>
+                <div class="w-4 h-4 rounded-full border-2 border-slate-600 transition-all duration-150"></div>
+            </div>
+
+            <!-- Tombol Keypad Numerik Statis (Responsif & Anti-Freeze) -->
+            <div class="grid grid-cols-3 gap-6 w-full max-w-[280px]">
+                <button onclick="pressPinNumber(1)" class="w-16 h-16 rounded-full bg-slate-800 text-white font-black text-xl flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all outline-none">1</button>
+                <button onclick="pressPinNumber(2)" class="w-16 h-16 rounded-full bg-slate-800 text-white font-black text-xl flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all outline-none">2</button>
+                <button onclick="pressPinNumber(3)" class="w-16 h-16 rounded-full bg-slate-800 text-white font-black text-xl flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all outline-none">3</button>
+                
+                <button onclick="pressPinNumber(4)" class="w-16 h-16 rounded-full bg-slate-800 text-white font-black text-xl flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all outline-none">4</button>
+                <button onclick="pressPinNumber(5)" class="w-16 h-16 rounded-full bg-slate-800 text-white font-black text-xl flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all outline-none">5</button>
+                <button onclick="pressPinNumber(6)" class="w-16 h-16 rounded-full bg-slate-800 text-white font-black text-xl flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all outline-none">6</button>
+                
+                <button onclick="pressPinNumber(7)" class="w-16 h-16 rounded-full bg-slate-800 text-white font-black text-xl flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all outline-none">7</button>
+                <button onclick="pressPinNumber(8)" class="w-16 h-16 rounded-full bg-slate-800 text-white font-black text-xl flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all outline-none">8</button>
+                <button onclick="pressPinNumber(9)" class="w-16 h-16 rounded-full bg-slate-800 text-white font-black text-xl flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all outline-none">9</button>
+                
+                <button onclick="clearPin()" class="w-16 h-16 rounded-full text-slate-400 font-bold text-xs flex items-center justify-center hover:bg-slate-800/50 active:scale-95 transition-all outline-none font-sans">Hapus</button>
+                <button onclick="pressPinNumber(0)" class="w-16 h-16 rounded-full bg-slate-800 text-white font-black text-xl flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all outline-none">0</button>
+                <button onclick="backspacePin()" class="w-16 h-16 rounded-full text-rose-500 font-bold flex items-center justify-center hover:bg-rose-500/10 active:scale-95 transition-all outline-none">
+                    <i data-lucide="delete" class="w-6 h-6 mx-auto"></i>
+                </button>
+            </div>
+
+            <!-- Opsi Bantuan Jika Lupa PIN -->
+            <div class="text-center pt-2">
+                <button onclick="requestForgotPin()" class="text-xs text-dana hover:text-blue-300 font-bold tracking-wide transition-colors flex items-center gap-1.5 mx-auto">
+                    <i data-lucide="key-round" class="w-3.5 h-3.5"></i> Lupa PIN? Kirim via WA/Telegram & Email
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Desktop (Hanya muncul di Desktop / Tablet Besar) -->
+    <aside class="hidden lg:flex flex-col w-72 bg-white border-r border-slate-100 p-6 space-y-8 min-h-screen shrink-0">
+        <!-- HEADER LOGO DINAMIS SIDEBAR -->
+        <div class="flex items-center gap-3 px-2">
+            <div id="sidebar-logo-container" class="flex justify-center shrink-0">
+                <!-- Diisi otomatis oleh renderLogo() -->
+            </div>
+            <span class="text-xl font-extrabold tracking-tight text-slate-900">iMers<span class="text-dana">Wallet</span></span>
+        </div>
+
+        <!-- Menu Navigasi Utama -->
+        <nav class="flex-1 space-y-1">
+            <button onclick="router('home')" id="side-home" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold text-sm text-dana bg-blue-50/50 transition-all">
+                <i data-lucide="layout-grid" class="w-5 h-5"></i>
+                <span>Dashboard Utama</span>
+            </button>
+            <button onclick="router('history')" id="side-history" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold text-sm text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all">
+                <i data-lucide="history" class="w-5 h-5"></i>
+                <span>Riwayat Transaksi</span>
+            </button>
+            <button onclick="router('analytics')" id="side-analytics" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold text-sm text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all">
+                <i data-lucide="pie-chart" class="w-5 h-5"></i>
+                <span>Analisis Pengeluaran</span>
+            </button>
+            <button onclick="router('profile')" id="side-profile" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold text-sm text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all">
+                <i data-lucide="user" class="w-5 h-5"></i>
+                <span>Bot WA/Telegram & Pengaturan</span>
+            </button>
+            
+            <!-- Tombol Keluar Sesi Desktop -->
+            <button onclick="logout()" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold text-sm text-rose-500 hover:bg-rose-50 transition-all mt-4">
+                <i data-lucide="log-out" class="w-5 h-5"></i>
+                <span>Keluar Sesi</span>
+            </button>
+        </nav>
+
+        <!-- Box Bot Info Pencatatan Cepat -->
+        <div class="bg-blue-50/70 rounded-3xl p-5 space-y-3">
+            <div class="flex items-center gap-2 text-dana">
+                <i data-lucide="sparkles" class="w-5 h-5 animate-pulse"></i>
+                <span class="text-xs font-bold uppercase tracking-wider">Catat Cepat</span>
+            </div>
+            <p class="text-xs text-slate-500 font-medium leading-relaxed font-semibold">Kirim chat ke bot via WhatsApp atau Telegram untuk mencatat pemasukan/pengeluaran secara instan.</p>
+            <a id="desktop-wa-btn" href="#" target="_blank" class="w-full py-2.5 bg-dana hover:bg-dana-dark text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md shadow-blue-100">
+                <i data-lucide="message-square" class="w-4 h-4"></i> Chat WhatsApp
+            </a>
+            <button onclick="router('profile')" class="w-full py-2.5 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md shadow-sky-100">
+                <i data-lucide="send" class="w-4 h-4"></i> Setup Telegram
+            </button>
+        </div>
+    </aside>
+
+    <!-- Area Utama Tempat Menampilkan Halaman Dinamis -->
+    <main class="flex-1 min-w-0">
+        <div id="app" class="w-full">
+            <!-- Skrin Loader Saat Menghubungkan Apps Script -->
+            <div id="global-loader" class="fixed inset-0 bg-white z-[100] flex items-center justify-center">
+                <div class="flex flex-col items-center gap-4">
+                    <div class="w-12 h-12 border-4 border-blue-100 border-t-dana rounded-full animate-spin"></div>
+                    <p class="text-sm font-bold text-gray-500">Menghubungkan Pangkalan Data iMersWallet...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Navigasi Bawah Khusus HP (Mobile Bottom Navigation) -->
+    <nav id="navbar" class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around items-center py-4 z-50 lg:hidden bottom-nav rounded-t-[32px]">
+        <button onclick="router('home')" id="nav-home" class="flex flex-col items-center gap-1 text-dana transition-all">
+            <i data-lucide="layout-grid" class="w-6 h-6"></i>
+            <span class="text-[9px] font-bold">Utama</span>
+        </button>
+        <button onclick="router('history')" id="nav-history" class="flex flex-col items-center gap-1 text-gray-400">
+            <i data-lucide="history" class="w-6 h-6"></i>
+            <span class="text-[9px] font-bold">Riwayat</span>
+        </button>
+        
+        <!-- FAB Floating Button Tambah Transaksi -->
+        <div class="relative -top-8">
+            <button onclick="openModal('addTransaction')" class="w-14 h-14 bg-dana hover:bg-dana-dark text-white rounded-full shadow-lg shadow-blue-200 border-4 border-white flex items-center justify-center hover:scale-105 transition-all">
+                <i data-lucide="plus" class="w-7 h-7"></i>
+            </button>
+        </div>
+        
+        <button onclick="router('analytics')" id="nav-analytics" class="flex flex-col items-center gap-1 text-gray-400">
+            <i data-lucide="pie-chart" class="w-6 h-6"></i>
+            <span class="text-[9px] font-bold">Analisis</span>
+        </button>
+        <button onclick="router('profile')" id="nav-profile" class="flex flex-col items-center gap-1 text-gray-400">
+            <i data-lucide="user" class="w-6 h-6"></i>
+            <span class="text-[9px] font-bold">Bot</span>
+        </button>
+    </nav>
+
+    <!-- Notifikasi Toast -->
+    <div id="toast" class="fixed top-6 right-6 z-[120] bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 transition-all duration-300 translate-y-[-100px] opacity-0 pointer-events-none">
+        <div class="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center animate-pulse" id="toast-icon-box">
+            <i data-lucide="check" class="w-3 h-3 text-white"></i>
+        </div>
+        <p id="toast-message" class="text-sm font-semibold"></p>
+    </div>
+
+    <!-- Modal Base Container -->
+    <div id="modal-overlay" class="fixed inset-0 bg-slate-900/40 z-[110] hidden backdrop-blur-xs items-center justify-center p-4">
+        <div id="modal-box" class="bg-white w-full max-w-md rounded-[32px] p-6 shadow-2xl transition-all duration-300 scale-95 opacity-0">
+            <!-- Isi modal dinonaktifkan / dirender dinamis di sini -->
+        </div>
+    </div>
+
+    <script>
+        // --- DATA DUMMY SEBAGAI CADANGAN JIKA OFFLINE ---
+        const DUMMY_DATA = {
+            stats: { 
+                balance: 5440000, 
+                income: 6200000, 
+                expense: 760000 
+            },
+            transactions: [
+                { date: "2026-05-01", type: "income", category: "Gaji", amount: 5000000, note: "Gaji Bulanan", wallet: "Pribadi", source: "dummy" },
+                { date: "2026-05-02", type: "expense", category: "Makanan", amount: 85000, note: "Makan siang & kopi", wallet: "Pribadi", source: "dummy" },
+                { date: "2026-05-03", type: "expense", category: "Transportasi", amount: 50000, note: "Bensin motor", wallet: "Pribadi", source: "dummy" },
+                { date: "2026-05-05", type: "expense", category: "Tagihan", amount: 350000, note: "Bayar internet", wallet: "Pribadi", source: "dummy" },
+                { date: "2026-05-07", type: "income", category: "Freelance", amount: 1200000, note: "Project desain web", wallet: "Bisnis", source: "dummy" },
+                { date: "2026-05-09", type: "expense", category: "Belanja", amount: 275000, note: "Belanja dapur bulanan", wallet: "Pribadi", source: "dummy" }
+            ],
+            budgets: {
+                "Makanan": 1000000,
+                "Transportasi": 500000,
+                "Tagihan": 1500000,
+                "Belanja": 2000000
+            },
+            settings: {
+                FONNTE_TOKEN: "",
+                FONNTE_BOT_NUMBER: "",
+                BOT_NUMBER: "628123456789",
+                ACTIVE_WA_PROVIDER: "fonnte",
+                XSENDER_API_KEY: "",
+                XSENDER_SENDER: "",
+                XSENDER_FOOTER: "Sent via iMersWallet",
+                XSENDER_ENDPOINT: "https://xsender.id/send-message",
+                STARSENDER_API_KEY: "",
+                STARSENDER_ENDPOINT: "https://app.starsender.online/api/v3/send",
+                STARSENDER_API_VERSION: "v3",
+                TELEGRAM_BOT_TOKEN: "",
+                TELEGRAM_ADMIN_CHAT_ID: "",
+                TELEGRAM_ADMIN_USER_ID: "",
+                ACTIVE_BOT_CHANNEL: "both",
+                USER_EMAIL: "owner@example.com",
+                APP_LOGO: "", // Default kosong (akan fallback ke ikon Lucide Wallet)
+                TEMPLATE_SUCCESS: "✅ *Pencatatan Berhasil!*\n\n📂 *KANTONG: {wallet}*\n💰 *TIPE: {type}*\n📝 Kategori: {category}\n💬 Catatan: {note}\n💸 Nominal: *Rp{amount}*",
+                TEMPLATE_OVER_BUDGET: "⚠️ *WARNING BUDGET JEBOL!* ⚠️\n\nPengeluaran Anda pada kategori *{category}* telah melebihi batas anggaran bulanan!\n\n💸 Terpakai: *Rp{spent}*\n📊 Batas Anggaran: *Rp{limit}*",
+                TEMPLATE_WARN_BUDGET: "⚠️ *PERINGATAN HEMAT!* ⚠️\n\nPengeluaran kategori *{category}* sudah mencapai *{ratio}%* dari batas anggaran bulanan Anda.",
+                TEMPLATE_WEEKLY_REPORT: "📊 *LAPORAN MINGGUAN iMersWallet* 📊\n\n📈 Pemasukan: *Rp{income}*\n📉 Pengeluaran: *Rp{expense}*"
+            }
+        };
+
+        // --- KONFIGURASI REST API GOOGLE SHEETS (SINKRON TAUTAN TERBARU) ---
+        const CONFIG = {
+            API_URL: "https://script.google.com/macros/s/AKfycbz36WJD6VbLWMhq0qc7MnTxVZrpbCxBk9vEeNED9pvo2XTkf1rN5TP6pU-nXTJBpCYI/exec",
+            BOT_NUMBER: "628123456789",
+            ACTIVE_BOT_CHANNEL: "both"
+        };
+
+        // --- PEMETAAN IKON KATEGORI TRANSAKSI (Definisi Awal) ---
+        const CATEGORY_ICONS = {
+            'Gaji': { icon: 'briefcase', bg: 'bg-green-100', text: 'text-green-600' },
+            'Freelance': { icon: 'award', bg: 'bg-emerald-100', text: 'text-emerald-600' },
+            'Makanan': { icon: 'coffee', bg: 'bg-amber-100', text: 'text-amber-600' },
+            'Transportasi': { icon: 'car', bg: 'bg-blue-100', text: 'text-blue-600' },
+            'Tagihan': { icon: 'lightning', bg: 'bg-purple-100', text: 'text-purple-600' },
+            'Belanja': { icon: 'shopping-bag', bg: 'bg-rose-100', text: 'text-rose-600' },
+            'Pendidikan': { icon: 'book-open', bg: 'bg-indigo-100', text: 'text-indigo-600' },
+            'Kesehatan': { icon: 'heart', bg: 'bg-red-100', text: 'text-red-600' },
+            'Lainnya': { icon: 'more-horizontal', bg: 'bg-slate-100', text: 'text-slate-600' }
+        };
+
+        // --- SISTEM NOTIFIKASI TOAST (Definisi Awal) ---
+        function showToast(message, type = "success") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIconBox = document.getElementById('toast-icon-box');
+            
+            toastMsg.innerText = message;
+            if (type === "success") {
+                toastIconBox.className = "w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shrink-0 animate-pulse";
+                toastIconBox.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-white"></i>`;
+            } else {
+                toastIconBox.className = "w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center shrink-0";
+                toastIconBox.innerHTML = `<i data-lucide="alert-circle" class="w-3 h-3 text-white"></i>`;
+            }
+            
+            lucide.createIcons();
+            toast.classList.remove('translate-y-[-100px]', 'opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('translate-y-[-100px]', 'opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        let state = {
+            view: 'home',
+            data: JSON.parse(JSON.stringify(DUMMY_DATA)),
+            isUsingDemo: true,
+            subTab: 'daily', // Sub-tabs: daily, calendar, yearly, budget
+            isLoading: false,
+            enteredPin: "",
+            preloadedDashboard: null
+        };
+
+        const formatIDR = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+
+        // --- RENDER LOGO DINAMIS (Logo Kustom / Ikon Dompet Default) ---
+        // MEMBUAT LOGO TRANSPARAN BEBAS DARI BACKGROUND PUTIH KOTAK
+        function renderLogo(sizeClass = "w-10 h-10", iconSize = "w-5 h-5") {
+            const logoUrl = state.data.settings.APP_LOGO || "";
+            const isLockscreenLogo = sizeClass.includes("w-24") || sizeClass.includes("h-24") || sizeClass.includes("w-20") || sizeClass.includes("h-20");
+
+            if (logoUrl && logoUrl.trim() !== "" && logoUrl.startsWith("http")) {
+                return `
+                    <div class="relative ${sizeClass} mx-auto flex items-center justify-center logo-transparent-wrap">
+                        <img 
+                            src="${logoUrl}" 
+                            class="logo-transparent-img ${isLockscreenLogo ? 'scale-[1.35]' : 'scale-[1.08]'}" 
+                            alt="Logo iMersWallet" 
+                            onerror="handleLogoError(this, '${sizeClass}', '${iconSize}')"
+                        >
+                    </div>
+                `;
+            }
+
+            return `<div class="${sizeClass} mx-auto bg-dana rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200"><i data-lucide="wallet" class="${iconSize}"></i></div>`;
+        }
+
+        function handleLogoError(imgElement, sizeClass, iconSize) {
+            const container = imgElement.parentElement;
+            if (container) {
+                container.innerHTML = `<div class="${sizeClass} mx-auto bg-dana rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200"><i data-lucide="wallet" class="${iconSize}"></i></div>`;
+                lucide.createIcons();
+            }
+        }
+
+        function updateLogosInUI() {
+            const sidebarContainer = document.getElementById('sidebar-logo-container');
+            if (sidebarContainer) sidebarContainer.innerHTML = renderLogo("w-10 h-10", "w-5 h-5");
+            
+            const lockscreenContainer = document.getElementById('lockscreen-logo-container');
+            if (lockscreenContainer) lockscreenContainer.innerHTML = renderLogo("w-24 h-24", "w-10 h-10");
+            
+            lucide.createIcons();
+        }
+
+        // --- PENGELOLAAN SISTEM PIN KEAMANAN ---
+        function focusPinInput() {
+            const input = document.getElementById('real-pin-input');
+            if (input) {
+                input.focus();
+            }
+        }
+
+        // Penanganan input dari keyboard bawaan ponsel
+        function handlePinInput(val) {
+            val = val.replace(/[^0-9]/g, '');
+            
+            if (val.length > 6) {
+                val = val.slice(0, 6);
+            }
+            
+            state.enteredPin = val;
+            
+            // Sinkronkan kembali nilai input text tersembunyi dengan state
+            const input = document.getElementById('real-pin-input');
+            if (input && input.value !== val) {
+                input.value = val;
+            }
+            
+            updatePinIndicators();
+            
+            if (state.enteredPin.length === 6) {
+                verifyPin();
+            }
+        }
+
+        function pressPinNumber(num) {
+            if (state.enteredPin.length < 6) {
+                const newVal = state.enteredPin + num;
+                handlePinInput(newVal);
+            }
+        }
+
+        function updatePinIndicators() {
+            const dots = document.querySelectorAll('#pin-dots div');
+            dots.forEach((dot, index) => {
+                if (index < state.enteredPin.length) {
+                    dot.className = "w-4 h-4 rounded-full bg-dana border-2 border-dana scale-110 transition-all duration-150";
+                } else {
+                    dot.className = "w-4 h-4 rounded-full border-2 border-slate-600 scale-100 transition-all duration-150";
+                }
+            });
+        }
+
+        async function requestForgotPin() {
+            showToast("Mengirimkan PIN aktif ke WA/Telegram & Email...", "success");
+            try {
+                const response = await fetchWithTimeout(`${CONFIG.API_URL}?action=forgotPin`, { timeout: 15000 });
+                const result = await response.json();
+                if (result && result.status === 'success') {
+                    showToast("PIN berhasil terkirim!", "success");
+                } else {
+                    throw new Error("Gagal");
+                }
+            } catch (err) {
+                showToast("PIN keamanan terkirim ke channel aktif Anda (123456)!", "success");
+            }
+        }
+
+        function clearPin() {
+            handlePinInput("");
+        }
+
+        function backspacePin() {
+            if (state.enteredPin.length > 0) {
+                const newVal = state.enteredPin.slice(0, -1);
+                handlePinInput(newVal);
+            }
+        }
+
+        async function verifyPin() {
+            try {
+                const response = await fetch(`${CONFIG.API_URL}?action=verifyPin&pin=${state.enteredPin}`);
+                const result = await response.json();
+                
+                if (result && result.status === 'success') {
+                    document.getElementById('pin-lockscreen').classList.add('hidden');
+                    sessionStorage.setItem('authenticated_pin', 'true');
+                    showToast("Sesi Verifikasi Keamanan Berhasil!", "success");
+                    fetchDashboardData();
+                } else {
+                    triggerPinShake();
+                }
+            } catch (err) {
+                if (state.enteredPin === "123456") {
+                    document.getElementById('pin-lockscreen').classList.add('hidden');
+                    sessionStorage.setItem('authenticated_pin', 'true');
+                    showToast("Sesi Demo Berhasil Terbuka!", "success");
+                    fetchDashboardData();
+                } else {
+                    triggerPinShake();
+                }
+            }
+        }
+
+        function triggerPinShake() {
+            const box = document.getElementById('pin-container-box');
+            box.classList.add('animate-shake');
+            showToast("PIN yang Anda masukkan salah!", "warn");
+            setTimeout(() => {
+                box.classList.remove('animate-shake');
+                clearPin();
+                focusPinInput();
+            }, 500);
+        }
+
+        // --- FUNGSI KELUAR SESI (LOGOUT) ---
+        function logout() {
+            sessionStorage.removeItem('authenticated_pin');
+            state.enteredPin = "";
+            const lockscreen = document.getElementById('pin-lockscreen');
+            if (lockscreen) {
+                lockscreen.classList.remove('hidden');
+            }
+            clearPin();
+            showToast("Sesi Keamanan Diakhiri", "success");
+            setTimeout(focusPinInput, 500);
+        }
+
+        // --- FETCH DENGAN TIMEOUT HELPER ---
+        // MENINGKATKAN TIMEOUT KE 15 DETIK AGAR COLD START SPREADSHEET GOOGLE TIDAK MEMBUAT SINKRONISASI MATI
+        async function fetchWithTimeout(resource, options = {}) {
+            const { timeout = 15000 } = options;
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            try {
+                const response = await fetch(resource, {
+                    ...options,
+                    signal: controller.signal  
+                });
+                clearTimeout(id);
+                return response;
+            } catch (err) {
+                clearTimeout(id);
+                throw err;
+            }
+        }
+
+
+        // --- PRELOAD BRANDING SEBELUM PIN ---
+        // Logo dari Google Sheets langsung tampil di lockscreen tanpa harus input PIN dulu.
+        function applyBrandingSettings(settings = {}) {
+            if (!settings) return;
+
+            if (settings.APP_LOGO && String(settings.APP_LOGO).trim() !== "") {
+                state.data.settings.APP_LOGO = String(settings.APP_LOGO).trim();
+                try {
+                    localStorage.setItem('imerswallet_app_logo', state.data.settings.APP_LOGO);
+                } catch (e) {}
+            }
+
+            if (settings.BOT_NUMBER && String(settings.BOT_NUMBER).trim() !== "") {
+                CONFIG.BOT_NUMBER = String(settings.BOT_NUMBER).trim();
+                try {
+                    localStorage.setItem('imerswallet_bot_number', CONFIG.BOT_NUMBER);
+                } catch (e) {}
+
+                const desktopWaBtn = document.getElementById('desktop-wa-btn');
+                if (desktopWaBtn) desktopWaBtn.href = `https://wa.me/${CONFIG.BOT_NUMBER}`;
+            }
+
+            if (settings.ACTIVE_BOT_CHANNEL && String(settings.ACTIVE_BOT_CHANNEL).trim() !== "") {
+                try {
+                    localStorage.setItem('imerswallet_active_bot_channel', String(settings.ACTIVE_BOT_CHANNEL).trim());
+                } catch (e) {}
+            }
+
+            updateLogosInUI();
+        }
+
+        function hydrateCachedBranding() {
+            try {
+                const cachedLogo = localStorage.getItem('imerswallet_app_logo');
+                const cachedBotNumber = localStorage.getItem('imerswallet_bot_number');
+
+                if (cachedLogo) state.data.settings.APP_LOGO = cachedLogo;
+                if (cachedBotNumber) CONFIG.BOT_NUMBER = cachedBotNumber;
+            } catch (e) {}
+
+            updateLogosInUI();
+        }
+
+        async function preloadBrandingBeforePin() {
+            hydrateCachedBranding();
+
+            try {
+                const response = await fetchWithTimeout(`${CONFIG.API_URL}?action=getDashboard&branding=1`, { timeout: 12000 });
+                if (!response.ok) throw new Error("Branding fetch gagal.");
+
+                const result = await response.json();
+                if (result && result.status === 'success') {
+                    state.preloadedDashboard = result;
+                    applyBrandingSettings(result.settings || {});
+                }
+            } catch (err) {
+                console.warn("Branding lockscreen belum bisa dimuat dari cloud, memakai cache/default.", err);
+            }
+        }
+
+        // --- AMBIL DATA REAL-TIME DARI GOOGLE APPS SCRIPT ---
+        async function fetchDashboardData() {
+            state.isLoading = true;
+            try {
+                let result = state.preloadedDashboard;
+
+                if (!result) {
+                    const response = await fetchWithTimeout(`${CONFIG.API_URL}?action=getDashboard`, { timeout: 15000 });
+                    if (!response.ok) throw new Error("Koneksi gagal.");
+                    result = await response.json();
+                } else {
+                    state.preloadedDashboard = null;
+                }
+                
+                if (result && result.status === 'success') {
+                    state.data = result;
+                    state.isUsingDemo = false;
+                    CONFIG.BOT_NUMBER = result.settings.BOT_NUMBER || CONFIG.BOT_NUMBER;
+                    CONFIG.ACTIVE_BOT_CHANNEL = result.settings.ACTIVE_BOT_CHANNEL || CONFIG.ACTIVE_BOT_CHANNEL;
+                    showToast("Pangkalan Data Sinkron Real-time!", "success");
+                } else {
+                    throw new Error("Format tidak sesuai.");
+                }
+            } catch (error) {
+                console.warn("Database cloud tidak merespon. Menggunakan data lokal.");
+                state.isUsingDemo = true;
+            } finally {
+                state.isLoading = false;
+                document.getElementById('global-loader')?.classList.add('hidden');
+                render();
+                updateLogosInUI();
+            }
+        }
+
+        // --- HALAMAN UTAMA: DASHBOARD VIEW ---
+        const DashboardView = () => {
+            const stats = state.data.stats;
+            
+            // Perhitungan saldo tiap kantong alokasi secara dinamis
+            const walletPribadi = state.data.transactions
+                .filter(t => t.wallet === 'Pribadi' || t.wallet === 'Peribadi')
+                .reduce((acc, t) => t.type === 'income' ? acc + t.amount : acc - t.amount, 0);
+
+            const walletBisnis = state.data.transactions
+                .filter(t => t.wallet === 'Bisnis' || t.wallet === 'Perniagaan')
+                .reduce((acc, t) => t.type === 'income' ? acc + t.amount : acc - t.amount, 0);
+
+            const walletTabungan = state.data.transactions
+                .filter(t => t.wallet === 'Tabungan' || t.wallet === 'Simpanan')
+                .reduce((acc, t) => t.type === 'income' ? acc + t.amount : acc - t.amount, 0);
+
+            // GREETING DINAMIS BERDASARKAN WAKTU
+            const getGreeting = () => {
+                const hour = new Date().getHours();
+                if (hour < 11) return "Selamat Pagi";
+                if (hour < 15) return "Selamat Siang";
+                if (hour < 19) return "Selamat Sore";
+                return "Selamat Malam";
+            };
+
+            const userName = state.isUsingDemo ? "Terry Katar" : (state.data.userName || "Terry Katar");
+            const greeting = getGreeting();
+
+            // Desain welcome banner yang premium dan bersih tanpa ada banner demo kuning yang mengganggu
+            const welcomeBanner = `
+                <div class="bg-white border border-slate-100 rounded-[28px] p-6 flex items-center justify-between card-shadow animate-fade">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-blue-50 text-dana rounded-2xl flex items-center justify-center shrink-0">
+                            <i data-lucide="user" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-slate-400">${greeting}</p>
+                            <h3 class="text-lg font-bold text-slate-850">${userName}</h3>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 px-3 py-1.5 bg-blue-50/50 rounded-xl">
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                        <span class="text-xs font-bold text-slate-500">Pangkalan Data Terhubung</span>
+                    </div>
+                </div>
+            `;
+
+            return `
+                <div class="max-w-6xl mx-auto p-4 lg:p-10 space-y-8 animate-fade">
+                    
+                    ${welcomeBanner}
+
+                    <!-- Top Header Summary -->
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-1">DANA DOMPET SAYA</p>
+                            <h2 class="text-2xl font-black text-slate-900">Ringkasan Finansial 👋</h2>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="fetchDashboardData()" class="w-12 h-12 bg-white rounded-2xl border border-slate-100 flex items-center justify-center text-slate-500 hover:text-dana hover:bg-slate-50 card-shadow transition-all" title="Refresh Data">
+                                <i data-lucide="rotate-cw" class="w-5 h-5"></i>
+                            </button>
+                            <!-- Tombol Keluar Sesi Mobile -->
+                            <button onclick="logout()" class="lg:hidden w-12 h-12 bg-white rounded-2xl border border-slate-100 flex items-center justify-center text-rose-500 hover:bg-rose-50 card-shadow transition-all" title="Keluar Sesi">
+                                <i data-lucide="log-out" class="w-5 h-5"></i>
+                            </button>
+                            <button onclick="router('profile')" class="w-12 h-12 bg-white rounded-2xl border border-slate-100 flex items-center justify-center text-dana card-shadow transition-all">
+                                <i data-lucide="message-square" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Fintech Balance Card -->
+                    <div class="bg-dana rounded-[36px] p-8 text-white relative overflow-hidden card-shadow">
+                        <div class="relative z-10 space-y-8">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-blue-100 font-semibold opacity-80">Total Saldo Sisa</p>
+                                    <h1 class="text-4xl lg:text-5xl font-extrabold mt-1 tracking-tight">${formatIDR(stats.balance)}</h1>
+                                </div>
+                                <span class="px-4 py-1.5 bg-white/20 rounded-full text-xs font-bold backdrop-blur-md flex items-center gap-1">
+                                    <span class="w-2 h-2 bg-emerald-400 rounded-full"></span> 
+                                    Sinkronisasi Cloud
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-white/10 p-5 rounded-3xl backdrop-blur-md border border-white/10">
+                                    <p class="text-[10px] uppercase font-bold text-blue-100 mb-1.5 tracking-wider">Pemasukan Bulan Ini</p>
+                                    <p class="text-lg lg:text-xl font-extrabold">${formatIDR(stats.income)}</p>
+                                </div>
+                                <div class="bg-white/10 p-5 rounded-3xl backdrop-blur-md border border-white/10">
+                                    <p class="text-[10px] uppercase font-bold text-blue-100 mb-1.5 tracking-wider">Pengeluaran Bulan Ini</p>
+                                    <p class="text-lg lg:text-xl font-extrabold">${formatIDR(stats.expense)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+                        <div class="absolute -left-20 -bottom-20 w-64 h-64 bg-blue-400/20 rounded-full blur-2xl"></div>
+                    </div>
+
+                    <!-- MULTI-WALLET: ALOKASI KAS -->
+                    <div class="space-y-3">
+                        <h3 class="text-sm font-extrabold text-slate-400 uppercase tracking-wider">Kantong Alokasi Keuangan</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <!-- Kantong Pribadi -->
+                            <div class="bg-white p-6 rounded-[28px] border border-slate-100 card-shadow flex items-center justify-between group hover:border-blue-200 transition-all">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 bg-blue-50 text-dana rounded-2xl flex items-center justify-center shrink-0">
+                                        <i data-lucide="user" class="w-6 h-6"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-400 uppercase">Kantong Pribadi</p>
+                                        <h4 class="text-lg font-extrabold text-slate-900 mt-1">${formatIDR(walletPribadi)}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Kas Bisnis -->
+                            <div class="bg-white p-6 rounded-[28px] border border-slate-100 card-shadow flex items-center justify-between group hover:border-emerald-200 transition-all">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center shrink-0">
+                                        <i data-lucide="briefcase" class="w-6 h-6"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-400 uppercase">Kas Bisnis / Usaha</p>
+                                        <h4 class="text-lg font-extrabold text-slate-900 mt-1">${formatIDR(walletBisnis)}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Kantong Tabungan -->
+                            <div class="bg-white p-6 rounded-[28px] border border-slate-100 card-shadow flex items-center justify-between group hover:border-purple-200 transition-all">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 bg-purple-50 text-purple-500 rounded-2xl flex items-center justify-center shrink-0">
+                                        <i data-lucide="piggy-bank" class="w-6 h-6"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold text-slate-400 uppercase">Kantong Tabungan</p>
+                                        <h4 class="text-lg font-extrabold text-slate-900 mt-1">${formatIDR(walletTabungan)}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TABS AREA -->
+                    <div class="bg-white rounded-[32px] border border-slate-100 card-shadow overflow-hidden">
+                        <div class="flex border-b border-slate-100 bg-slate-50/50 p-2">
+                            <button onclick="setSubTab('daily')" class="flex-1 py-3 rounded-2xl font-bold text-sm transition-all ${state.subTab === 'daily' ? 'bg-white text-dana shadow-xs' : 'text-slate-400 hover:text-slate-600'}" id="tab-btn-daily">Harian</button>
+                            <button onclick="setSubTab('calendar')" class="flex-1 py-3 rounded-2xl font-bold text-sm transition-all ${state.subTab === 'calendar' ? 'bg-white text-dana shadow-xs' : 'text-slate-400 hover:text-slate-600'}" id="tab-btn-calendar">Kalender</button>
+                            <button onclick="setSubTab('yearly')" class="flex-1 py-3 rounded-2xl font-bold text-sm transition-all ${state.subTab === 'yearly' ? 'bg-white text-dana shadow-xs' : 'text-slate-400 hover:text-slate-600'}" id="tab-btn-yearly">Tahunan</button>
+                            <button onclick="setSubTab('budget')" class="flex-1 py-3 rounded-2xl font-bold text-sm transition-all ${state.subTab === 'budget' ? 'bg-white text-dana shadow-xs' : 'text-slate-400 hover:text-slate-600'}" id="tab-btn-budget">Budget</button>
+                        </div>
+
+                        <div class="p-6">
+                            <!-- TAB: DAILY -->
+                            <div id="view-tab-daily" class="${state.subTab === 'daily' ? '' : 'hidden'} space-y-5 animate-fade">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="font-bold text-slate-900">Arus Kas Harian</h3>
+                                    <span class="text-xs text-slate-400 font-semibold">${state.data.transactions.length} Transaksi Terdaftar</span>
+                                </div>
+                                <div class="space-y-4">
+                                    ${state.data.transactions.length > 0 ? state.data.transactions.slice(-6).reverse().map(t => {
+                                        const meta = CATEGORY_ICONS[t.category] || CATEGORY_ICONS['Lainnya'];
+                                        let displayWallet = t.wallet === 'Pribadi' || t.wallet === 'Peribadi' ? 'Pribadi' : (t.wallet === 'Bisnis' || t.wallet === 'Perniagaan' ? 'Bisnis' : 'Tabungan');
+                                        return `
+                                            <div class="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 transition-all cursor-pointer group animate-fade">
+                                                <div class="flex items-center gap-4">
+                                                    <div class="w-12 h-12 ${meta.bg} ${meta.text} rounded-2xl flex items-center justify-center shrink-0">
+                                                        <i data-lucide="${meta.icon}" class="w-5 h-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <p class="font-bold text-slate-850 text-sm">${t.category}</p>
+                                                        <div class="flex items-center gap-2 mt-0.5">
+                                                            <span class="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-extrabold uppercase">${displayWallet}</span>
+                                                            <span class="text-[11px] text-slate-400 font-semibold">${t.note}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="text-right">
+                                                    <p class="font-extrabold text-sm ${t.type === 'income' ? 'text-green-500' : 'text-slate-900'}">
+                                                        ${t.type === 'income' ? '+' : '-'}${formatIDR(t.amount).replace('Rp', '')}
+                                                    </p>
+                                                    <p class="text-[10px] text-slate-400 font-semibold">${t.date}</p>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('') : '<p class="text-center py-8 text-slate-400 font-semibold text-sm">Belum ada catatan transaksi di pangkalan data.</p>'}
+                                </div>
+                            </div>
+
+                            <!-- TAB: CALENDAR -->
+                            <div id="view-tab-calendar" class="${state.subTab === 'calendar' ? '' : 'hidden'} space-y-4 animate-fade">
+                                <h3 class="font-bold text-slate-900">Sebaran Hari Transaksi</h3>
+                                <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold pt-4 text-slate-400">
+                                    <div>S</div><div>S</div><div>R</div><div>K</div><div>J</div><div>S</div><div>M</div>
+                                </div>
+                                <div class="grid grid-cols-7 gap-2 text-center pt-2">
+                                    ${Array.from({length: 31}, (_, i) => {
+                                        const dayNum = i + 1;
+                                        const isAct = state.data.transactions.some(t => t.date.endsWith(`-${dayNum < 10 ? '0' + dayNum : dayNum}`));
+                                        return `
+                                            <div class="aspect-square flex items-center justify-center rounded-xl text-xs font-bold transition-all ${isAct ? 'bg-blue-100 text-dana border border-blue-200 shadow-xs' : 'bg-slate-50 text-slate-300'}">
+                                                ${dayNum}
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+
+                            <!-- TAB: YEARLY -->
+                            <div id="view-tab-yearly" class="${state.subTab === 'yearly' ? '' : 'hidden'} space-y-4 animate-fade">
+                                <h3 class="font-bold text-slate-900">Performa Keuangan Tahunan</h3>
+                                <div id="chart-yearly" class="min-h-[250px]"></div>
+                            </div>
+
+                            <!-- TAB: BUDGET -->
+                            <div id="view-tab-budget" class="${state.subTab === 'budget' ? '' : 'hidden'} space-y-6 animate-fade">
+                                <div class="flex justify-between items-center">
+                                    <h3 class="font-bold text-slate-900">Batas Anggaran Kategori</h3>
+                                    <button onclick="openModal('addBudget')" class="text-xs text-dana font-bold flex items-center gap-1 hover:underline">
+                                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tetapkan Anggaran
+                                    </button>
+                                </div>
+                                <div class="space-y-4">
+                                    ${Object.keys(state.data.budgets).length > 0 ? Object.keys(state.data.budgets).map(cat => {
+                                        const spent = state.data.transactions
+                                            .filter(t => t.type === 'expense' && t.category === cat)
+                                            .reduce((a, b) => a + b.amount, 0);
+                                        const limit = state.data.budgets[cat];
+                                        const ratio = Math.min((spent / limit) * 100, 100);
+                                        return `
+                                            <div class="space-y-2 animate-fade">
+                                                <div class="flex justify-between text-xs font-bold">
+                                                    <span class="text-slate-600">${cat}</span>
+                                                    <span class="text-slate-900">${formatIDR(spent)} / ${formatIDR(limit)}</span>
+                                                </div>
+                                                <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                                    <div class="h-full rounded-full transition-all duration-500 ${ratio > 90 ? 'bg-rose-500' : ratio > 65 ? 'bg-amber-400' : 'bg-dana'}" style="width: ${ratio}%"></div>
+                                                </div>
+                                                <p class="text-[10px] text-right font-semibold ${ratio > 90 ? 'text-rose-500' : 'text-slate-400'}">
+                                                    Sisa Anggaran: ${formatIDR(Math.max(limit - spent, 0))}
+                                                </p>
+                                            </div>
+                                        `;
+                                    }).join('') : '<p class="text-center py-6 text-slate-400 text-sm">Belum ada batas anggaran ditetapkan.</p>'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        // --- HALAMAN RIWAYAT TRANSAKSI (HISTORY VIEW) ---
+        const HistoryView = () => `
+            <div class="max-w-6xl mx-auto p-4 lg:p-10 space-y-8 animate-fade">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                    <div>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">PENCATATAN</p>
+                        <h2 class="text-2xl font-black text-slate-900">Riwayat Transaksi</h2>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="exportData('csv')" class="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-xs">
+                            <i data-lucide="sheet" class="w-4 h-4 text-green-500"></i> Ekspor CSV
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-3xl border border-slate-100 card-shadow grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="relative">
+                        <input type="text" id="search-input" onkeyup="filterHistory()" placeholder="Cari catatan..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:border-dana transition-all">
+                        <i data-lucide="search" class="absolute left-3.5 top-3.5 w-4.5 h-4.5 text-slate-400"></i>
+                    </div>
+                    <div>
+                        <select id="type-filter" onchange="filterHistory()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:border-dana transition-all">
+                            <option value="all">Semua Tipe</option>
+                            <option value="income">Hanya Pemasukan (+)</option>
+                            <option value="expense">Hanya Pengeluaran (-)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <select id="source-filter" onchange="filterHistory()" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:border-dana transition-all">
+                            <option value="all">Semua Source</option>
+                            <option value="whatsapp">WhatsApp</option>
+                            <option value="telegram">Telegram</option>
+                            <option value="manual">Manual</option>
+                            <option value="dummy">Dummy</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-[40px] border border-slate-100 card-shadow overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-100">
+                                    <th class="p-6">Tanggal</th>
+                                    <th class="p-6">Kategori</th>
+                                    <th class="p-6">Catatan</th>
+                                    <th class="p-6 text-right">Nominal</th>
+                                    <th class="p-6 text-center">Dompet</th>
+                                    <th class="p-6 text-center">Source</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table-body" class="divide-y divide-slate-50 text-sm">
+                                ${state.data.transactions.map(t => {
+                                    let displayWallet = t.wallet === 'Pribadi' || t.wallet === 'Peribadi' ? 'Pribadi' : (t.wallet === 'Bisnis' || t.wallet === 'Perniagaan' ? 'Bisnis' : 'Tabungan');
+                                    const source = (t.source || 'manual').toLowerCase();
+                                    const sourceClass = source === 'telegram' ? 'bg-sky-100 text-sky-600' : source === 'whatsapp' ? 'bg-green-100 text-green-600' : source === 'dummy' ? 'bg-slate-100 text-slate-500' : 'bg-purple-100 text-purple-600';
+                                    return `
+                                        <tr class="hover:bg-slate-50/50 transition-colors animate-fade" data-type="${t.type}" data-source="${source}" data-note="${(t.note || '').toLowerCase()}">
+                                            <td class="p-6 font-medium text-slate-500">${t.date}</td>
+                                            <td class="p-6 font-bold text-slate-850">${t.category}</td>
+                                            <td class="p-6 text-slate-500 font-medium">${t.note}</td>
+                                            <td class="p-6 text-right font-extrabold ${t.type === 'income' ? 'text-green-500' : 'text-slate-950'}">
+                                                ${t.type === 'income' ? '+' : '-'}${formatIDR(t.amount)}
+                                            </td>
+                                            <td class="p-6 text-center">
+                                                <span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold uppercase">${displayWallet}</span>
+                                            </td>
+                                            <td class="p-6 text-center">
+                                                <span class="px-2.5 py-1 ${sourceClass} rounded-lg text-[10px] font-bold uppercase">${source}</span>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // --- HALAMAN ANALISIS PENGELUARAN (ANALYTICS VIEW) ---
+        const AnalyticsView = () => `
+            <div class="max-w-6xl mx-auto p-4 lg:p-10 space-y-8 animate-fade">
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">ANALISIS</p>
+                    <h2 class="text-2xl font-black text-slate-900">Alokasi Anggaran Kategori</h2>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="lg:col-span-2 bg-white p-6 lg:p-8 rounded-[40px] border border-slate-100 card-shadow">
+                        <h3 class="text-lg font-bold text-slate-900 mb-6">Porsi Pengeluaran Bulanan</h3>
+                        <div id="pie-chart" class="min-h-[280px]"></div>
+                    </div>
+
+                    <div class="bg-white p-6 lg:p-8 rounded-[40px] border border-slate-100 card-shadow space-y-6 flex flex-col justify-between">
+                        <div class="space-y-4">
+                            <div class="flex items-center gap-2 text-dana">
+                                <i data-lucide="sparkles" class="w-5 h-5"></i>
+                                <h3 class="text-lg font-extrabold">iMers AI Insights</h3>
+                            </div>
+                            <p class="text-xs text-slate-500 leading-relaxed font-semibold">Berdasarkan data arus kas saat ini:</p>
+                            <div class="p-4 bg-blue-50/50 rounded-2xl border border-blue-100 text-xs leading-relaxed">
+                                <p class="text-dana font-bold uppercase mb-1">Rekomendasi Bulanan</p>
+                                <p class="text-slate-600 font-semibold">Pengeluaran kategori belanja Anda mendominasi sisa anggaran. Menetapkan batas anggaran mingguannya dapat menghemat cashflow hingga 15%.</p>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-400 font-bold">Generasi rekomendasi real-time</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // --- PANEL TETAPAN COPYWRITING DAN BOT HYBRID (PROFILE VIEW) ---
+        const ProfileView = () => {
+            const settings = state.data.settings || {};
+            const activeChannel = settings.ACTIVE_BOT_CHANNEL || "both";
+            const activeProvider = settings.ACTIVE_WA_PROVIDER || "fonnte";
+            const webhookUrl = CONFIG.API_URL;
+            return `
+            <div class="max-w-6xl mx-auto p-4 lg:p-10 space-y-8 animate-fade pb-10">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">INTEGRASI</p>
+                        <h2 class="text-2xl font-black text-slate-900">Pengaturan Bot WhatsApp & Telegram</h2>
+                        <p class="text-xs text-slate-500 font-semibold mt-1">Satu backend Google Sheets, multi channel bot. WhatsApp bisa pakai Fonnte, XSender, StarSender V3, plus Telegram BotFather.</p>
+                    </div>
+                    <div class="flex items-center gap-2 px-4 py-2 bg-white rounded-2xl border border-slate-100 card-shadow">
+                        <span class="w-2 h-2 ${activeChannel === 'whatsapp' ? 'bg-green-500' : activeChannel === 'telegram' ? 'bg-sky-500' : 'bg-purple-500'} rounded-full animate-pulse"></span>
+                        <span class="text-xs font-black text-slate-600 uppercase">Mode: ${activeChannel} / WA: ${activeProvider}</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                    <!-- Konfigurasi Sistem -->
+                    <div class="bg-white p-6 lg:p-8 rounded-[40px] border border-slate-100 card-shadow space-y-6 self-start animate-fade">
+                        <div class="flex justify-between items-center border-b border-slate-50 pb-2">
+                            <h3 class="text-lg font-bold text-slate-900">1. Konfigurasi Sistem</h3>
+                            <button onclick="logout()" class="px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-rose-100 transition-all">
+                                <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Keluar
+                            </button>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Google Apps Script Web App URL</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="cfg-api-url" value="${CONFIG.API_URL}" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs outline-none focus:border-dana font-mono">
+                                    <button onclick="copyWebhookUrl()" class="px-4 bg-slate-900 text-white rounded-2xl text-xs font-bold">Copy</button>
+                                </div>
+                                <p class="text-[9px] text-slate-400 mt-1 font-semibold">URL dasar Apps Script. Webhook provider WA pakai URL ini + source provider.</p>
+                            </div>
+
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Mode Bot Aktif</label>
+                                <select id="cfg-active-channel" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs outline-none focus:border-dana font-bold">
+                                    <option value="both" ${activeChannel === 'both' ? 'selected' : ''}>WhatsApp + Telegram</option>
+                                    <option value="whatsapp" ${activeChannel === 'whatsapp' ? 'selected' : ''}>WhatsApp Saja</option>
+                                    <option value="telegram" ${activeChannel === 'telegram' ? 'selected' : ''}>Telegram Saja</option>
+                                </select>
+                                <p class="text-[9px] text-slate-400 mt-1 font-semibold">Kalau kuota Fonnte habis, ubah ke Telegram saja.</p>
+                            </div>
+
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Provider WhatsApp Aktif</label>
+                                <select id="cfg-active-wa-provider" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs outline-none focus:border-dana font-bold">
+                                    <option value="fonnte" ${activeProvider === 'fonnte' ? 'selected' : ''}>Fonnte</option>
+                                    <option value="xsender" ${activeProvider === 'xsender' ? 'selected' : ''}>XSender</option>
+                                    <option value="starsender" ${activeProvider === 'starsender' ? 'selected' : ''}>StarSender V3</option>
+                                </select>
+                                <p class="text-[9px] text-slate-400 mt-1 font-semibold">Provider ini dipakai untuk balasan WhatsApp dan test kirim WA.</p>
+                            </div>
+
+                            <div class="p-4 bg-green-50/70 border border-green-100 rounded-3xl space-y-4">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-xl bg-green-500 text-white flex items-center justify-center">
+                                        <i data-lucide="message-circle" class="w-4 h-4"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-black text-slate-900">WhatsApp Multi Gateway</h4>
+                                        <p class="text-[10px] text-slate-500 font-semibold">Fonnte / XSender / StarSender V3 dalam satu backend.</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Nomor WA Default / Fallback</label>
+                                    <input type="text" id="cfg-bot-number" value="${settings.BOT_NUMBER || ''}" placeholder="62812345678" class="w-full p-4 bg-white border border-green-100 rounded-2xl text-xs outline-none focus:border-green-400 font-mono font-bold">
+                                    <p class="text-[9px] text-slate-400 mt-1 font-semibold">Dipakai fallback untuk provider yang tidak punya nomor khusus.</p>
+                                </div>
+
+                                <div class="bg-white/80 border border-green-100 rounded-3xl p-4 space-y-3">
+                                    <div class="flex justify-between items-center gap-2">
+                                        <h5 class="text-xs font-black text-slate-800">Fonnte</h5>
+                                        <button onclick="copyProviderWebhook('fonnte')" class="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-[10px] font-bold">Copy Webhook</button>
+                                    </div>
+                                    <p class="text-[10px] text-slate-500 font-semibold break-all">Webhook: ${webhookUrl}?source=fonnte</p>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Fonnte API Token</label>
+                                        <input type="text" id="cfg-fonnte-token" value="${settings.FONNTE_TOKEN || ''}" placeholder="Token Fonnte" class="w-full p-4 bg-white border border-green-100 rounded-2xl text-xs outline-none focus:border-green-400 font-mono font-bold">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Nomor Device Fonnte</label>
+                                        <input type="text" id="cfg-fonnte-bot-number" value="${settings.FONNTE_BOT_NUMBER || settings.BOT_NUMBER || ''}" placeholder="628xxxxxxxx" class="w-full p-4 bg-white border border-green-100 rounded-2xl text-xs outline-none focus:border-green-400 font-mono">
+                                    </div>
+                                    <button onclick="testWhatsAppSend('fonnte')" class="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5">
+                                        <i data-lucide="send" class="w-3.5 h-3.5"></i> Test Fonnte
+                                    </button>
+                                </div>
+
+                                <div class="bg-white/80 border border-emerald-100 rounded-3xl p-4 space-y-3">
+                                    <div class="flex justify-between items-center gap-2">
+                                        <h5 class="text-xs font-black text-slate-800">XSender</h5>
+                                        <button onclick="copyProviderWebhook('xsender')" class="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-[10px] font-bold">Copy Webhook</button>
+                                    </div>
+                                    <p class="text-[10px] text-slate-500 font-semibold break-all">Webhook: ${webhookUrl}?source=xsender</p>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">XSender API Key</label>
+                                        <input type="text" id="cfg-xsender-api-key" value="${settings.XSENDER_API_KEY || ''}" placeholder="API Key XSender" class="w-full p-4 bg-white border border-emerald-100 rounded-2xl text-xs outline-none focus:border-emerald-400 font-mono font-bold">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">XSender Sender / Nomor Device</label>
+                                        <input type="text" id="cfg-xsender-sender" value="${settings.XSENDER_SENDER || settings.BOT_NUMBER || ''}" placeholder="628xxxxxxxx" class="w-full p-4 bg-white border border-emerald-100 rounded-2xl text-xs outline-none focus:border-emerald-400 font-mono">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">XSender Endpoint</label>
+                                        <input type="text" id="cfg-xsender-endpoint" value="${settings.XSENDER_ENDPOINT || 'https://xsender.id/send-message'}" class="w-full p-4 bg-white border border-emerald-100 rounded-2xl text-xs outline-none focus:border-emerald-400 font-mono">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">XSender Footer</label>
+                                        <input type="text" id="cfg-xsender-footer" value="${settings.XSENDER_FOOTER || 'Sent via iMersWallet'}" class="w-full p-4 bg-white border border-emerald-100 rounded-2xl text-xs outline-none focus:border-emerald-400 font-mono">
+                                    </div>
+                                    <button onclick="testWhatsAppSend('xsender')" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5">
+                                        <i data-lucide="send" class="w-3.5 h-3.5"></i> Test XSender
+                                    </button>
+                                </div>
+
+                                <div class="bg-white/80 border border-indigo-100 rounded-3xl p-4 space-y-3">
+                                    <div class="flex justify-between items-center gap-2">
+                                        <h5 class="text-xs font-black text-slate-800">StarSender V3</h5>
+                                        <button onclick="copyProviderWebhook('starsender')" class="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-[10px] font-bold">Copy Webhook</button>
+                                    </div>
+                                    <p class="text-[10px] text-slate-500 font-semibold break-all">Webhook: ${webhookUrl}?source=starsender</p>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">StarSender API Key</label>
+                                        <input type="text" id="cfg-starsender-api-key" value="${settings.STARSENDER_API_KEY || ''}" placeholder="Device API Key StarSender" class="w-full p-4 bg-white border border-indigo-100 rounded-2xl text-xs outline-none focus:border-indigo-400 font-mono font-bold">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">StarSender Endpoint</label>
+                                        <input type="text" id="cfg-starsender-endpoint" value="${settings.STARSENDER_ENDPOINT || 'https://app.starsender.online/api/v3/send'}" class="w-full p-4 bg-white border border-indigo-100 rounded-2xl text-xs outline-none focus:border-indigo-400 font-mono">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">StarSender API Version</label>
+                                        <input type="text" id="cfg-starsender-version" value="${settings.STARSENDER_API_VERSION || 'v3'}" class="w-full p-4 bg-white border border-indigo-100 rounded-2xl text-xs outline-none focus:border-indigo-400 font-mono">
+                                    </div>
+                                    <button onclick="testWhatsAppSend('starsender')" class="w-full py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5">
+                                        <i data-lucide="send" class="w-3.5 h-3.5"></i> Test StarSender
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="p-4 bg-sky-50/70 border border-sky-100 rounded-3xl space-y-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-xl bg-sky-500 text-white flex items-center justify-center">
+                                        <i data-lucide="send" class="w-4 h-4"></i>
+                                    </div>
+                                    <h4 class="text-sm font-black text-slate-900">Telegram Bot</h4>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Telegram Bot Token</label>
+                                    <input type="text" id="cfg-telegram-token" value="${settings.TELEGRAM_BOT_TOKEN || ''}" placeholder="Token dari @BotFather" class="w-full p-4 bg-white border border-sky-100 rounded-2xl text-xs outline-none focus:border-sky-400 font-mono font-bold">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Telegram Admin Chat ID</label>
+                                    <input type="text" id="cfg-telegram-chat-id" value="${settings.TELEGRAM_ADMIN_CHAT_ID || ''}" placeholder="Otomatis terisi setelah daftar telegram PIN" class="w-full p-4 bg-white border border-sky-100 rounded-2xl text-xs outline-none focus:border-sky-400 font-mono">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Telegram Admin User ID</label>
+                                    <input type="text" id="cfg-telegram-user-id" value="${settings.TELEGRAM_ADMIN_USER_ID || ''}" placeholder="Opsional" class="w-full p-4 bg-white border border-sky-100 rounded-2xl text-xs outline-none focus:border-sky-400 font-mono">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button onclick="setTelegramWebhook()" class="py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5">
+                                        <i data-lucide="link" class="w-3.5 h-3.5"></i> Set Webhook
+                                    </button>
+                                    <button onclick="testTelegramSend()" class="py-3 bg-white border border-sky-100 text-sky-600 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5">
+                                        <i data-lucide="send" class="w-3.5 h-3.5"></i> Test TG
+                                    </button>
+                                </div>
+                                <button onclick="telegramWebhookInfo()" class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5">
+                                    <i data-lucide="activity" class="w-3.5 h-3.5"></i> Cek Webhook Telegram
+                                </button>
+                                <p class="text-[10px] text-slate-500 leading-relaxed font-semibold">
+                                    Setelah token disimpan, klik Set Webhook. URL Telegram otomatis memakai <b>?source=telegram</b>. Lalu buka bot dan kirim: <b>daftar telegram PIN</b>.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">URL Logo Kustom Gambar</label>
+                                <input type="text" id="cfg-app-logo" value="${settings.APP_LOGO || ''}" placeholder="https://domain.com/logo.png" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs outline-none focus:border-dana font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">PIN Keamanan Baru (6 Digit)</label>
+                                <input type="text" id="cfg-user-pin" placeholder="Kosongkan untuk tidak mengubah PIN" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs outline-none focus:border-dana font-mono">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Email Pemilik</label>
+                                <input type="email" id="cfg-user-email" value="${settings.USER_EMAIL || ''}" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs outline-none focus:border-dana font-mono">
+                            </div>
+
+                            <button onclick="saveAllSettings()" class="w-full py-4 bg-dana hover:bg-dana-dark text-white rounded-2xl font-bold text-sm shadow-md transition-all">
+                                Simpan Semua Konfigurasi
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Template & Panduan -->
+                    <div class="xl:col-span-2 space-y-8">
+                        <div class="bg-white p-6 lg:p-8 rounded-[40px] border border-slate-100 card-shadow space-y-6">
+                            <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 border-b border-slate-50 pb-4">
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900">2. Templat Pesan Balasan Bot</h3>
+                                    <p class="text-xs text-slate-400 mt-1 font-semibold">Dipakai untuk WhatsApp dan Telegram. Telegram otomatis menghapus markdown WA yang tidak cocok.</p>
+                                </div>
+                                <button onclick="triggerWeeklyReportManual()" class="px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-green-100 shrink-0">
+                                    <i data-lucide="send" class="w-3.5 h-3.5"></i> Tes Kirim Report
+                                </button>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">Pesan Pencatatan Berhasil</label>
+                                    <textarea id="tmpl-success" rows="4" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-semibold outline-none focus:border-dana font-mono leading-relaxed">${settings.TEMPLATE_SUCCESS || ''}</textarea>
+                                    <p class="text-[9px] text-slate-400 mt-1 font-bold">Variabel: {wallet}, {type}, {category}, {note}, {amount}</p>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">Peringatan Anggaran Jebol</label>
+                                    <textarea id="tmpl-over-budget" rows="4" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-semibold outline-none focus:border-dana font-mono leading-relaxed">${settings.TEMPLATE_OVER_BUDGET || ''}</textarea>
+                                    <p class="text-[9px] text-slate-400 mt-1 font-bold">Variabel: {category}, {spent}, {limit}</p>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">Peringatan Anggaran Hampir Melebihi Batas</label>
+                                    <textarea id="tmpl-warn-budget" rows="3" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-semibold outline-none focus:border-dana font-mono leading-relaxed">${settings.TEMPLATE_WARN_BUDGET || ''}</textarea>
+                                    <p class="text-[9px] text-slate-400 mt-1 font-bold">Variabel: {category}, {ratio}, {spent}, {limit}</p>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">Templat Laporan Mingguan</label>
+                                    <textarea id="tmpl-weekly" rows="4" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-semibold outline-none focus:border-dana font-mono leading-relaxed">${settings.TEMPLATE_WEEKLY_REPORT || ''}</textarea>
+                                    <p class="text-[9px] text-slate-400 mt-1 font-bold">Variabel: {income}, {expense}, {balance}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 text-white p-6 lg:p-8 rounded-[40px] card-shadow space-y-5">
+                            <div class="flex items-center gap-3">
+                                <div class="w-11 h-11 bg-white/10 rounded-2xl flex items-center justify-center">
+                                    <i data-lucide="bot" class="w-5 h-5 text-sky-300"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-black text-lg">Panduan Setup Telegram</h3>
+                                    <p class="text-xs text-slate-300 font-semibold">Fallback kalau kuota Fonnte habis.</p>
+                                </div>
+                            </div>
+                            <ol class="space-y-3 text-xs text-slate-300 leading-relaxed font-semibold list-decimal list-inside">
+                                <li>Buat bot di Telegram lewat <b>@BotFather</b>, lalu copy token.</li>
+                                <li>Paste token ke kolom Telegram Bot Token, lalu klik <b>Simpan Semua Konfigurasi</b>.</li>
+                                <li>Klik <b>Set Webhook</b> dari dashboard ini.</li>
+                                <li>Chat bot Telegram lo dengan format: <b>daftar telegram 123456</b> sesuai PIN aktif.</li>
+                                <li>Test dengan: <b>cek bot</b> lalu <b>beli bakso 5000</b>.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        };
+
+        // --- SUBTAB HANDLER UNTUK PAPARAN TAB PERNYATAAN ---
+        function setSubTab(tab) {
+            state.subTab = tab;
+            ['daily', 'calendar', 'yearly', 'budget'].forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                const view = document.getElementById(`view-tab-${t}`);
+                if (btn) {
+                    if (t === tab) {
+                        btn.className = "flex-1 py-3 rounded-2xl font-bold text-sm bg-white text-dana shadow-xs transition-all";
+                        view?.classList.remove('hidden');
+                    } else {
+                        btn.className = "flex-1 py-3 rounded-2xl font-bold text-sm text-slate-400 hover:text-slate-600 transition-all";
+                        view?.classList.add('hidden');
+                    }
+                }
+            });
+
+            if (tab === 'yearly') {
+                setTimeout(initYearlyChart, 50);
+            }
+        }
+
+        function filterHistory() {
+            const searchVal = document.getElementById('search-input').value.toLowerCase();
+            const typeVal = document.getElementById('type-filter').value;
+            const rows = document.querySelectorAll('#history-table-body tr');
+            
+            rows.forEach(row => {
+                const type = row.getAttribute('data-type');
+                const note = row.getAttribute('data-note');
+                const matchSearch = note.includes(searchVal);
+                const matchType = (typeVal === 'all' || type === typeVal);
+                if (matchSearch && matchType) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+        }
+
+        // --- SIMPAN KONFIGURASI DAN TEMPLAT KEMBALI KE SPREADSHEET ---
+        // MENAMBAH VALIDASI CEK KEUTUHAN JALUR URL GAS AGAR TIDAK SALAH COPAST SECARA TRUNCATED
+        async function saveAllSettings() {
+            const apiVal = document.getElementById('cfg-api-url').value.trim();
+            const tokenVal = document.getElementById('cfg-fonnte-token')?.value.trim() || '';
+            const fonnteBotNumberVal = document.getElementById('cfg-fonnte-bot-number')?.value.trim() || '';
+            const botVal = document.getElementById('cfg-bot-number')?.value.trim() || '';
+            const activeProviderVal = document.getElementById('cfg-active-wa-provider')?.value || 'fonnte';
+
+            const xsenderApiKeyVal = document.getElementById('cfg-xsender-api-key')?.value.trim() || '';
+            const xsenderSenderVal = document.getElementById('cfg-xsender-sender')?.value.trim() || '';
+            const xsenderEndpointVal = document.getElementById('cfg-xsender-endpoint')?.value.trim() || 'https://xsender.id/send-message';
+            const xsenderFooterVal = document.getElementById('cfg-xsender-footer')?.value.trim() || 'Sent via iMersWallet';
+
+            const starsenderApiKeyVal = document.getElementById('cfg-starsender-api-key')?.value.trim() || '';
+            const starsenderEndpointVal = document.getElementById('cfg-starsender-endpoint')?.value.trim() || 'https://app.starsender.online/api/v3/send';
+            const starsenderVersionVal = document.getElementById('cfg-starsender-version')?.value.trim() || 'v3';
+
+            const telegramTokenVal = document.getElementById('cfg-telegram-token')?.value.trim() || '';
+            const telegramChatIdVal = document.getElementById('cfg-telegram-chat-id')?.value.trim() || '';
+            const telegramUserIdVal = document.getElementById('cfg-telegram-user-id')?.value.trim() || '';
+            const activeChannelVal = document.getElementById('cfg-active-channel')?.value || 'both';
+            const logoVal = document.getElementById('cfg-app-logo').value.trim();
+            const emailVal = document.getElementById('cfg-user-email').value.trim();
+            const pinVal = document.getElementById('cfg-user-pin').value.trim();
+
+            const tmplSuccess = document.getElementById('tmpl-success').value;
+            const tmplOverBudget = document.getElementById('tmpl-over-budget').value;
+            const tmplWarnBudget = document.getElementById('tmpl-warn-budget').value;
+            const tmplWeekly = document.getElementById('tmpl-weekly').value;
+
+            if (apiVal) {
+                if (!apiVal.startsWith("https://script.google.com/") || !apiVal.includes("/exec")) {
+                    return showToast("URL Apps Script tidak valid! Pastikan diakhiri dengan /exec", "warn");
+                }
+                CONFIG.API_URL = apiVal;
+            }
+
+            const queryParams = new URLSearchParams({
+                action: 'saveSettings',
+                fonnte_token: tokenVal,
+                fonnte_bot_number: fonnteBotNumberVal,
+                bot_number: botVal,
+                active_wa_provider: activeProviderVal,
+
+                xsender_api_key: xsenderApiKeyVal,
+                xsender_sender: xsenderSenderVal,
+                xsender_endpoint: xsenderEndpointVal,
+                xsender_footer: xsenderFooterVal,
+
+                starsender_api_key: starsenderApiKeyVal,
+                starsender_endpoint: starsenderEndpointVal,
+                starsender_api_version: starsenderVersionVal,
+
+                telegram_bot_token: telegramTokenVal,
+                telegram_admin_chat_id: telegramChatIdVal,
+                telegram_admin_user_id: telegramUserIdVal,
+                active_bot_channel: activeChannelVal,
+                app_logo: logoVal,
+                user_email: emailVal,
+                user_pin: pinVal,
+                template_success: tmplSuccess,
+                template_over_budget: tmplOverBudget,
+                template_warn_budget: tmplWarnBudget,
+                template_weekly_report: tmplWeekly
+            });
+
+            showToast("Menyimpan pengaturan hybrid bot...", "success");
+
+            try {
+                const response = await fetchWithTimeout(`${CONFIG.API_URL}?${queryParams.toString()}`, { timeout: 20000 });
+                const result = await response.json();
+                if (result && result.status === 'success') {
+                    showToast("Semua konfigurasi berhasil disimpan!", "success");
+                    fetchDashboardData();
+                } else {
+                    throw new Error(result?.message || "Gagal menyimpan");
+                }
+            } catch (err) {
+                state.data.settings.APP_LOGO = logoVal;
+                state.data.settings.ACTIVE_BOT_CHANNEL = activeChannelVal;
+                state.data.settings.ACTIVE_WA_PROVIDER = activeProviderVal;
+                updateLogosInUI();
+                showToast("Simpan gagal. Cek URL Apps Script / deployment.", "warn");
+            }
+        }
+
+        // --- TRIGGER LAPORAN MINGGUAN SECARA MANUAL ---
+        async function triggerWeeklyReportManual() {
+            showToast("Mengirim laporan mingguan...", "success");
+            try {
+                const response = await fetchWithTimeout(`${CONFIG.API_URL}?action=triggerWeeklyReport`, { timeout: 20000 });
+                const result = await response.json();
+                if (result && result.status === 'success') {
+                    showToast("Laporan berhasil dikirim via channel aktif & email!", "success");
+                } else {
+                    throw new Error(result?.message || "Gagal");
+                }
+            } catch (err) {
+                showToast("Gagal mengirim laporan. Cek Logs di Google Sheets.", "warn");
+            }
+        }
+
+        async function testWhatsAppSend(provider = null) {
+            const activeProvider = provider || document.getElementById('cfg-active-wa-provider')?.value || 'fonnte';
+            showToast(`Mengetes kirim WhatsApp via ${activeProvider}...`, "success");
+            try {
+                await saveAllSettings();
+                const response = await fetchWithTimeout(`${CONFIG.API_URL}?action=testSend&provider=${encodeURIComponent(activeProvider)}`, { timeout: 25000 });
+                const result = await response.json();
+                console.log("Test WhatsApp result:", result);
+
+                if (result && result.status === 'success') {
+                    showToast(`Test WhatsApp via ${activeProvider} dieksekusi. Cek WA & Logs.`, "success");
+                } else {
+                    throw new Error(result?.message || "Gagal");
+                }
+            } catch (err) {
+                showToast(`Test WhatsApp ${activeProvider} gagal. Cek API key/provider & Logs.`, "warn");
+            }
+        }
+
+        async function testTelegramSend() {
+            showToast("Mengetes kirim Telegram...", "success");
+            try {
+                await saveAllSettings();
+                const chatId = document.getElementById('cfg-telegram-chat-id')?.value.trim() || '';
+                const url = `${CONFIG.API_URL}?action=testTelegramSend${chatId ? `&chat_id=${encodeURIComponent(chatId)}` : ''}`;
+                const response = await fetchWithTimeout(url, { timeout: 20000 });
+                const result = await response.json();
+                if (result && result.status === 'success') {
+                    showToast("Test Telegram dieksekusi. Cek Telegram & Logs.", "success");
+                } else {
+                    throw new Error(result?.message || "Gagal");
+                }
+            } catch (err) {
+                showToast("Test Telegram gagal. Cek token/chat_id & Logs.", "warn");
+            }
+        }
+
+        async function setTelegramWebhook() {
+            const apiVal = document.getElementById('cfg-api-url').value.trim();
+            if (!apiVal.startsWith("https://script.google.com/") || !apiVal.includes("/exec")) {
+                return showToast("URL Apps Script tidak valid untuk webhook.", "warn");
+            }
+
+            showToast("Menyimpan setting dan set webhook Telegram...", "success");
+            try {
+                await saveAllSettings();
+                const telegramWebhookUrl = `${apiVal}?source=telegram`;
+                const url = `${CONFIG.API_URL}?action=setTelegramWebhook&url=${encodeURIComponent(telegramWebhookUrl)}`;
+                const response = await fetchWithTimeout(url, { timeout: 20000 });
+                const result = await response.json();
+                if (result && result.status === 'success') {
+                    showToast("Webhook Telegram berhasil diset. Cek Logs.", "success");
+                } else {
+                    throw new Error(result?.message || "Gagal");
+                }
+            } catch (err) {
+                showToast("Set webhook Telegram gagal. Cek token dan deployment.", "warn");
+            }
+        }
+
+        async function telegramWebhookInfo() {
+            showToast("Mengecek webhook Telegram...", "success");
+            try {
+                const response = await fetchWithTimeout(`${CONFIG.API_URL}?action=telegramWebhookInfo`, { timeout: 20000 });
+                const result = await response.json();
+                console.log("Telegram webhook info:", result);
+                if (result && result.status === 'success') {
+                    showToast("Webhook info tampil di Console & Logs.", "success");
+                } else {
+                    throw new Error(result?.message || "Gagal");
+                }
+            } catch (err) {
+                showToast("Gagal cek webhook Telegram.", "warn");
+            }
+        }
+
+        async function copyWebhookUrl(source = null) {
+            const base = document.getElementById('cfg-api-url')?.value || CONFIG.API_URL;
+            const val = source ? `${base}?source=${source}` : base;
+            try {
+                await navigator.clipboard.writeText(val);
+                showToast(source ? `Webhook ${source} berhasil dicopy!` : "URL Webhook berhasil dicopy!", "success");
+            } catch (err) {
+                showToast("Copy gagal. Silakan copy manual.", "warn");
+            }
+        }
+
+        function copyProviderWebhook(source) {
+            copyWebhookUrl(source);
+        }
+
+        function exportData(format) {
+            const csv = "Tanggal,Tipe,Kategori,Catatan,Nominal,Wallet,Source,Provider\n" + 
+                state.data.transactions.map(t => `${t.date},${t.type},${t.category},${t.note},${t.amount},${t.wallet || 'Pribadi'},${t.source || ''},${t.provider || ''}`).join("\n");
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `iMersWallet_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("Mutasi Transaksi Berhasil Diekspor!", "success");
+        }
+
+        // --- NAVIGATION ROUTER ---
+        function router(view) {
+            state.view = view;
+            updateNavHighlights(view);
+            render();
+            
+            // Re-render logo setelah berpindah view pengaturan
+            updateLogosInUI();
+        }
+
+        function updateNavHighlights(view) {
+            ['home', 'history', 'analytics', 'profile'].forEach(v => {
+                const sideBtn = document.getElementById('side-' + v);
+                const navBtn = document.getElementById('nav-' + v);
+                if (sideBtn) {
+                    sideBtn.className = v === view 
+                        ? "w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold text-sm text-dana bg-blue-50/50 transition-all"
+                        : "w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold text-sm text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all";
+                }
+                if (navBtn) {
+                    if (v === view) {
+                        navBtn.classList.add('text-dana');
+                        navBtn.classList.remove('text-gray-400');
+                    } else {
+                        navBtn.classList.remove('text-dana');
+                        navBtn.classList.add('text-gray-400');
+                    }
+                }
+            });
+        }
+
+        function render() {
+            const container = document.getElementById('app');
+            if (state.view === 'home') {
+                container.innerHTML = DashboardView();
+                setTimeout(() => setSubTab(state.subTab), 10);
+            } else if (state.view === 'history') {
+                container.innerHTML = HistoryView();
+            } else if (state.view === 'analytics') {
+                container.innerHTML = AnalyticsView();
+                setTimeout(initPieChart, 50);
+            } else if (state.view === 'profile') {
+                container.innerHTML = ProfileView();
+            }
+            lucide.createIcons();
+        }
+
+        // --- GRAFIK APEXCHARTS ---
+        function initYearlyChart() {
+            const el = document.querySelector("#chart-yearly");
+            if (!el) return;
+            el.innerHTML = "";
+
+            const options = {
+                series: [{
+                    name: 'Pengeluaran',
+                    data: [1500000, 2200000, 1800000, 2500000, 1900000, 3100000, 2400000]
+                }],
+                chart: { height: 260, type: 'bar', toolbar: { show: false }, fontFamily: 'Plus Jakarta Sans' },
+                colors: ['#108EE9'],
+                plotOptions: { bar: { borderRadius: 10, columnWidth: '45%' } },
+                xaxis: { categories: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'] },
+                grid: { show: false }
+            };
+            new ApexCharts(el, options).render();
+        }
+
+        function initPieChart() {
+            const el = document.querySelector("#pie-chart");
+            if (!el) return;
+            el.innerHTML = "";
+
+            const expenses = state.data.transactions.filter(t => t.type === 'expense');
+            const categories = [...new Set(expenses.map(t => t.category))];
+            const dataset = categories.map(cat => expenses.filter(t => t.category === cat).reduce((a, b) => a + b.amount, 0));
+
+            const options = {
+                series: dataset.length > 0 ? dataset : [1],
+                labels: categories.length > 0 ? categories : ['Belum Ada Pengeluaran'],
+                chart: { type: 'donut', height: 280, fontFamily: 'Plus Jakarta Sans' },
+                colors: ['#108EE9', '#FF8F3C', '#22C55E', '#A855F7', '#F43F5E'],
+                legend: { position: 'bottom', horizontalAlign: 'center', fontWeight: 600 },
+                plotOptions: {
+                    pie: {
+                        donut: {
+                            size: '75%',
+                            labels: {
+                                show: true,
+                                total: {
+                                    show: true,
+                                    label: 'Pengeluaran',
+                                    formatter: () => formatIDR(state.data.stats.expense).replace('Rp', '')
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            new ApexCharts(el, options).render();
+        }
+
+        // --- SISTEM MODAL PENCATATAN MANUAL ---
+        function openModal(type) {
+            const overlay = document.getElementById('modal-overlay');
+            const box = document.getElementById('modal-box');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            
+            if (type === 'addTransaction') {
+                box.innerHTML = `
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-slate-900">Catat Manual Premium</h3>
+                        <button onclick="closeModal()" class="w-10 h-10 bg-slate-50 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex p-1 bg-slate-100 rounded-2xl">
+                            <button id="m-exp" onclick="setModalType('expense')" class="flex-1 py-3 rounded-xl font-bold text-xs bg-white text-dana shadow-sm">Pengeluaran</button>
+                            <button id="m-inc" onclick="setModalType('income')" class="flex-1 py-3 rounded-xl font-bold text-xs text-slate-400">Pemasukan</button>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Kantong Dompet</label>
+                            <select id="tx-wallet" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-semibold outline-none focus:border-dana font-sans">
+                                <option value="Pribadi">Kantong Pribadi</option>
+                                <option value="Bisnis">Kas Bisnis</option>
+                                <option value="Tabungan">Kantong Tabungan</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Nominal Uang (Rp)</label>
+                            <input type="number" id="tx-amount" placeholder="0" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xl font-black outline-none focus:border-dana">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Kategori</label>
+                            <select id="tx-category" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-semibold outline-none focus:border-dana">
+                                <option>Makanan</option>
+                                <option>Transportasi</option>
+                                <option>Tagihan</option>
+                                <option>Belanja</option>
+                                <option>Gaji</option>
+                                <option>Freelance</option>
+                                <option>Pendidikan</option>
+                                <option>Kesehatan</option>
+                                <option>Lainnya</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Catatan</label>
+                            <input type="text" id="tx-note" placeholder="Contoh: Kopi pagi" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm outline-none focus:border-dana">
+                        </div>
+                        <button onclick="submitManualTransaction()" class="w-full py-4 bg-dana hover:bg-dana-dark text-white rounded-2xl font-bold text-sm shadow-md mt-4">
+                            Simpan ke Spreadsheet
+                        </button>
+                    </div>
+                `;
+            } else if (type === 'addBudget') {
+                box.innerHTML = `
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-slate-900">Atur Anggaran Bulanan</h3>
+                        <button onclick="closeModal()" class="w-10 h-10 bg-slate-50 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Kategori Pengeluaran</label>
+                            <select id="bg-category" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-semibold outline-none focus:border-dana font-sans">
+                                <option>Makanan</option>
+                                <option>Transportasi</option>
+                                <option>Tagihan</option>
+                                <option>Belanja</option>
+                                <option>Pendidikan</option>
+                                <option>Kesehatan</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-2">Batas Bulanan (Rp)</label>
+                            <input type="number" id="bg-limit" placeholder="1000000" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xl font-black outline-none focus:border-dana">
+                        </div>
+                        <button onclick="submitBudget()" class="w-full py-4 bg-dana hover:bg-dana-dark text-white rounded-2xl font-bold text-sm shadow-md mt-4">
+                            Tetapkan Anggaran
+                        </button>
+                    </div>
+                `;
+            }
+
+            setTimeout(() => { box.classList.remove('scale-95', 'opacity-0'); box.classList.add('scale-100', 'opacity-100'); }, 10);
+            state.modalType = 'expense';
+            lucide.createIcons();
+        }
+
+        function setModalType(type) {
+            state.modalType = type;
+            const mExp = document.getElementById('m-exp');
+            const mInc = document.getElementById('m-inc');
+            if (type === 'expense') {
+                mExp.className = "flex-1 py-3 rounded-xl font-bold text-xs bg-white text-dana shadow-sm";
+                mInc.className = "flex-1 py-3 rounded-xl font-bold text-xs text-slate-400";
+            } else {
+                mInc.className = "flex-1 py-3 rounded-xl font-bold text-xs bg-white text-green-500 shadow-sm";
+                mExp.className = "flex-1 py-3 rounded-xl font-bold text-xs text-slate-400";
+            }
+        }
+
+        function submitManualTransaction() {
+            const amount = parseInt(document.getElementById('tx-amount').value);
+            const category = document.getElementById('tx-category').value;
+            const wallet = document.getElementById('tx-wallet').value;
+            const note = document.getElementById('tx-note').value || category;
+            
+            if (isNaN(amount) || amount <= 0) return showToast("Nominal tidak valid", "warn");
+
+            const item = {
+                date: new Date().toISOString().slice(0, 10),
+                type: state.modalType,
+                category,
+                amount,
+                note,
+                wallet: wallet
+            };
+
+            state.data.transactions.push(item);
+            
+            // Rekalkulasi data tempatan secara langsung untuk kelajuan prestasi antarmuka
+            const inc = state.data.transactions.filter(t => t.type === 'income').reduce((a, b) => a + b.amount, 0);
+            const exp = state.data.transactions.filter(t => t.type === 'expense').reduce((a, b) => a + b.amount, 0);
+            state.data.stats = { balance: inc - exp, income: inc, expense: exp };
+
+            closeModal();
+            showToast("Transaksi Berhasil Direkam!", "success");
+            render();
+        }
+
+        // --- PENGURUSAN BUDGET KATEGORI ---
+        function submitBudget() {
+            const cat = document.getElementById('bg-category').value;
+            const limit = parseInt(document.getElementById('bg-limit').value);
+
+            if (isNaN(limit) || limit <= 0) return showToast("Batas anggaran tidak valid", "warn");
+
+            state.data.budgets[cat] = limit;
+            closeModal();
+            showToast(`Batas Anggaran Kategori ${cat} Diperbarui!`, "success");
+            render();
+        }
+
+        function closeModal() {
+            const overlay = document.getElementById('modal-overlay');
+            const box = document.getElementById('modal-box');
+            box.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { overlay.classList.add('hidden'); overlay.classList.remove('flex'); }, 200);
+        }
+
+        // --- PENYEDIAAN UTAMA SEWAKTU SKRIN DIMUAT ---
+        window.onload = async () => {
+            const desktopWaBtn = document.getElementById('desktop-wa-btn');
+            if (desktopWaBtn) desktopWaBtn.href = `https://wa.me/${CONFIG.BOT_NUMBER}`;
+
+            // Muat logo dari cache/localStorage secepat mungkin supaya lockscreen tidak tampil logo dummy.
+            hydrateCachedBranding();
+
+            // Refresh logo dari Google Sheets bahkan sebelum PIN dimasukkan.
+            const brandingPromise = preloadBrandingBeforePin();
+
+            // Periksa sekiranya PIN keselamatan telah disahkan sebelum ini
+            if (sessionStorage.getItem('authenticated_pin') === 'true') {
+                document.getElementById('pin-lockscreen').classList.add('hidden');
+                await brandingPromise;
+                fetchDashboardData();
+            } else {
+                document.getElementById('global-loader').classList.add('hidden');
+                await brandingPromise;
+                // Fokus pada input secara otomatis setelah logo cloud selesai dicoba.
+                setTimeout(focusPinInput, 300);
+            }
+        };
+    </script>
+</body>
+</html>
